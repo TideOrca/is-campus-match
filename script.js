@@ -14,7 +14,7 @@ const statement=document.querySelector('.statement');
 const topNav=document.querySelector('.topbar nav');
 topNav.insertAdjacentHTML('afterbegin','<span class="top-tools"><button class="group-entry" type="button">加入群聊<span class="group-pop"><img src="qq.jpg" alt="赛事群二维码"></span></button><button class="score-entry" type="button">得分榜</button></span>');
 const countTarget=document.querySelector('.status-strip div:nth-child(3) strong');
-async function loadRegistrationCount(){if(!supa||!countTarget)return;const {data,error}=await supa.rpc('registration_count');if(!error)countTarget.textContent=`${data??0} 名选手`;}
+async function loadRegistrationCount(){if(!supa||!countTarget)return;const {count,error}=await supa.from('registrations').select('*',{count:'exact',head:true});if(!error)countTarget.textContent=`${count??0} 名选手`;}
 loadRegistrationCount();
 document.body.insertAdjacentHTML('beforeend','<dialog id="scoreDialog" class="score-dialog"><button class="close-score" aria-label="关闭">×</button><p class="eyebrow"><span></span> 实时记录</p><h2>当前得分榜</h2><p class="score-updated" id="scoreUpdated">正在读取…</p><div class="score-table-wrap"><table><thead><tr><th>排名</th><th>姓名</th><th>分队</th><th>得分</th></tr></thead><tbody id="scoreBody"></tbody></table></div></dialog>');
 const scoreDialog=document.querySelector('#scoreDialog');

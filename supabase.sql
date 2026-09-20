@@ -2,13 +2,19 @@
 -- 报名表结构与行级安全策略（全新部署用）
 -- ============================================================
 -- 执行位置：Supabase 控制台 → SQL Editor
--- 执行前请先在 Authentication → Users 中创建管理员账号，
--- 并在 Authentication → Providers → Email 中关闭公开注册。
 --
--- 安全模型：
---   anon         只能提交报名；只能读取「已录入得分」记录的
---                name / team / score 三列（用于公开得分榜）
---   authenticated 管理员，可查看全部、改分、删除
+-- 安全模型（访问密码方案）：
+--   管理后台采用「访问密码 + sessionStorage」的轻量验证，
+--   前端始终以 anon 身份直连数据库，因此 anon 需要
+--   insert / select / update / delete 四项权限。
+--
+--   请注意：anon key 按设计是公开密钥，会随前端下发到浏览器，
+--   所以本表对任何访客都是可读可写的。表中存有报名者 QQ 号，
+--   若日后需要真正的隔离，应改用 Supabase Auth 登录，
+--   并把 select / update / delete 策略收窄到 authenticated。
+--
+--   访问密码本身存放在 supabase-config.js，
+--   该文件已被 .gitignore 忽略，不要提交到版本库。
 -- ============================================================
 
 create table if not exists public.registrations (
@@ -23,7 +29,7 @@ create table if not exists public.registrations (
 
 alter table public.registrations enable row level security;
 
--- 报名端：匿名用户只能提交报名，不能读取他人数据
+-- 报名端：提交报名（字段格式在策略层再校验一次）
 create policy "报名者可以提交"
   on public.registrations for insert to anon
   with check (
@@ -32,34 +38,15 @@ create policy "报名者可以提交"
     and match_date between date '2026-10-01' and date '2026-10-07'
   );
 
--- 公开得分榜：匿名仅能读取已录入得分的记录，
--- 列权限收窄到榜单实际需要的三列（不暴露 QQ 号与报名时间）
-revoke select on public.registrations from anon;
-grant select (name, team, score) on public.registrations to anon;
+-- 公开得分榜与报名人数统计需要读取数据
+create policy "报名者可以查看"
+  on public.registrations for select to anon using (true);
 
-create policy "公榜可读已录入得分"
-  on public.registrations for select to anon
-  using (score is not null);
-
--- 管理端：仅已登录管理员可查看全部、修改得分、删除报名
-create policy "管理员可以查看"
-  on public.registrations for select to authenticated using (true);
-
+-- 管理后台：修改得分
 create policy "管理员可以修改得分"
-  on public.registrations for update to authenticated
+  on public.registrations for update to anon
   using (true) with check (score is null or score between 0 and 999);
 
+-- 管理后台：删除报名
 create policy "管理员可以删除报名"
-  on public.registrations for delete to authenticated using (true);
-
--- 报名人数统计改用安全定义函数，
--- 避免为了拿到总数而向匿名用户开放整表行读取
-create or replace function public.registration_count()
-returns bigint
-language sql
-security definer
-set search_path = public
-as $$ select count(*) from public.registrations; $$;
-
-revoke all on function public.registration_count() from public;
-grant execute on function public.registration_count() to anon, authenticated;
+  on public.registrations for delete to anon using (true);
