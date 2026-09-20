@@ -1,0 +1,10 @@
+# 本地 Supabase 配置（含项目地址与 anon key），不提交到仓库
+# 首次使用请复制 supabase-config.example.js 为 supabase-config.js 并填入自己的配置
+supabase-config.js
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
